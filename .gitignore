@@ -1,0 +1,39 @@
+# --- Derleme Çıktıları (Build Outputs) ---
+/target/
+/out/
+*.class
+*.log
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# --- IntelliJ IDEA (Proje Ayarları) ---
+.idea/
+*.iws
+*.iml
+*.ipr
+# .idea klasörünü komple yoksayıyoruz, böylece senin yerel ayarların 
+# (pencere konumu, senin bilgisayarındaki JDK yolu vb.) repoya gitmez.
+
+# --- Maven ---
+.mvn/
+mvnw
+mvnw.cmd
+!.mvn/wrapper/maven-wrapper.jar
+
+# --- Eclipse / NetBeans / VS Code (Başkası açarsa diye) ---
+.classpath
+.project
+.settings/
+.factorypath
+.vscode/
+/nbproject/
+/nbbuild/
+
+# --- İşletim Sistemi Dosyaları ---
+.DS_Store
+Thumbs.db
