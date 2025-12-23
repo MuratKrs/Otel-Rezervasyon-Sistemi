@@ -2,12 +2,12 @@
 -- PostgreSQL database dump
 --
 
-\restrict Lm7EEfqMxcQe5nvBvhQopBk3yOi2dddcWoaatExIusMDONpPloUrUDrmokAliEo
+\restrict PlmVbxTECxUILNZJKHBbGkGUXyzvjPL6JH2EXy61T2wmEYUCkkzddx5gMjA7gMJ
 
 -- Dumped from database version 17.6
 -- Dumped by pg_dump version 17.6
 
--- Started on 2025-12-20 21:54:50
+-- Started on 2025-12-23 21:26:48
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -22,7 +22,7 @@ SET client_min_messages = warning;
 SET row_security = off;
 
 --
--- TOC entry 232 (class 1255 OID 16551)
+-- TOC entry 233 (class 1255 OID 16551)
 -- Name: calculate_total_price(integer, date, date); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
@@ -33,13 +33,8 @@ DECLARE
     v_price DECIMAL(10, 2);
     v_days INT;
 BEGIN
-    -- Odanın gecelik fiyatını al
     SELECT price_per_night INTO v_price FROM rooms WHERE room_id = p_room_id;
-    
-    -- Gün farkını bul
     v_days := p_end_date - p_start_date;
-    
-    -- Toplam fiyatı döndür (Eğer gün 0 veya negatifse hata kontrolü eklenebilir)
     RETURN v_price * v_days;
 END;
 $$;
@@ -71,7 +66,42 @@ $$;
 ALTER FUNCTION public.log_reservation_cancel_func() OWNER TO postgres;
 
 --
--- TOC entry 233 (class 1255 OID 16552)
+-- TOC entry 246 (class 1255 OID 16675)
+-- Name: sp_create_reservation(integer, integer, date, date, numeric); Type: PROCEDURE; Schema: public; Owner: postgres
+--
+
+CREATE PROCEDURE public.sp_create_reservation(IN p_user_id integer, IN p_room_id integer, IN p_check_in date, IN p_check_out date, IN p_total_price numeric)
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+    v_conflict_count INT;
+BEGIN
+    -- 1. Tarih Çakışması Kontrolü
+    SELECT COUNT(*) INTO v_conflict_count
+    FROM reservations
+    WHERE room_id = p_room_id
+      AND (
+          (start_date <= p_check_out AND end_date >= p_check_in)
+      );
+
+    IF v_conflict_count > 0 THEN
+        RAISE EXCEPTION 'Seçilen tarihlerde bu oda zaten dolu!';
+    END IF;
+
+    -- 2. Rezervasyonu Ekle
+    INSERT INTO reservations (user_id, room_id, start_date, end_date, total_price)
+    VALUES (p_user_id, p_room_id, p_check_in, p_check_out, p_total_price);
+
+    -- 3. Odayı 'OCCUPIED' (Dolu) yap
+    UPDATE rooms SET status = 'OCCUPIED' WHERE room_id = p_room_id;
+END;
+$$;
+
+
+ALTER PROCEDURE public.sp_create_reservation(IN p_user_id integer, IN p_room_id integer, IN p_check_in date, IN p_check_out date, IN p_total_price numeric) OWNER TO postgres;
+
+--
+-- TOC entry 232 (class 1255 OID 16552)
 -- Name: update_room_status_func(); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
@@ -130,7 +160,7 @@ CREATE SEQUENCE public.audit_logs_log_id_seq
 ALTER SEQUENCE public.audit_logs_log_id_seq OWNER TO postgres;
 
 --
--- TOC entry 4990 (class 0 OID 0)
+-- TOC entry 4991 (class 0 OID 0)
 -- Dependencies: 223
 -- Name: audit_logs_log_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
@@ -168,7 +198,7 @@ CREATE SEQUENCE public.features_feature_id_seq
 ALTER SEQUENCE public.features_feature_id_seq OWNER TO postgres;
 
 --
--- TOC entry 4991 (class 0 OID 0)
+-- TOC entry 4992 (class 0 OID 0)
 -- Dependencies: 227
 -- Name: features_feature_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
@@ -209,7 +239,7 @@ CREATE SEQUENCE public.payments_payment_id_seq
 ALTER SEQUENCE public.payments_payment_id_seq OWNER TO postgres;
 
 --
--- TOC entry 4992 (class 0 OID 0)
+-- TOC entry 4993 (class 0 OID 0)
 -- Dependencies: 230
 -- Name: payments_payment_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
@@ -252,7 +282,7 @@ CREATE SEQUENCE public.reservations_reservation_id_seq
 ALTER SEQUENCE public.reservations_reservation_id_seq OWNER TO postgres;
 
 --
--- TOC entry 4993 (class 0 OID 0)
+-- TOC entry 4994 (class 0 OID 0)
 -- Dependencies: 221
 -- Name: reservations_reservation_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
@@ -304,7 +334,7 @@ CREATE SEQUENCE public.room_types_type_id_seq
 ALTER SEQUENCE public.room_types_type_id_seq OWNER TO postgres;
 
 --
--- TOC entry 4994 (class 0 OID 0)
+-- TOC entry 4995 (class 0 OID 0)
 -- Dependencies: 225
 -- Name: room_types_type_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
@@ -346,7 +376,7 @@ CREATE SEQUENCE public.rooms_room_id_seq
 ALTER SEQUENCE public.rooms_room_id_seq OWNER TO postgres;
 
 --
--- TOC entry 4995 (class 0 OID 0)
+-- TOC entry 4996 (class 0 OID 0)
 -- Dependencies: 219
 -- Name: rooms_room_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
@@ -389,7 +419,7 @@ CREATE SEQUENCE public.users_user_id_seq
 ALTER SEQUENCE public.users_user_id_seq OWNER TO postgres;
 
 --
--- TOC entry 4996 (class 0 OID 0)
+-- TOC entry 4997 (class 0 OID 0)
 -- Dependencies: 217
 -- Name: users_user_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
@@ -398,7 +428,7 @@ ALTER SEQUENCE public.users_user_id_seq OWNED BY public.users.user_id;
 
 
 --
--- TOC entry 4785 (class 2604 OID 16545)
+-- TOC entry 4786 (class 2604 OID 16545)
 -- Name: audit_logs log_id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -406,7 +436,7 @@ ALTER TABLE ONLY public.audit_logs ALTER COLUMN log_id SET DEFAULT nextval('publ
 
 
 --
--- TOC entry 4788 (class 2604 OID 16577)
+-- TOC entry 4789 (class 2604 OID 16577)
 -- Name: features feature_id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -414,7 +444,7 @@ ALTER TABLE ONLY public.features ALTER COLUMN feature_id SET DEFAULT nextval('pu
 
 
 --
--- TOC entry 4789 (class 2604 OID 16601)
+-- TOC entry 4790 (class 2604 OID 16601)
 -- Name: payments payment_id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -422,7 +452,7 @@ ALTER TABLE ONLY public.payments ALTER COLUMN payment_id SET DEFAULT nextval('pu
 
 
 --
--- TOC entry 4783 (class 2604 OID 16527)
+-- TOC entry 4784 (class 2604 OID 16527)
 -- Name: reservations reservation_id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -430,7 +460,7 @@ ALTER TABLE ONLY public.reservations ALTER COLUMN reservation_id SET DEFAULT nex
 
 
 --
--- TOC entry 4787 (class 2604 OID 16561)
+-- TOC entry 4788 (class 2604 OID 16561)
 -- Name: room_types type_id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -438,7 +468,7 @@ ALTER TABLE ONLY public.room_types ALTER COLUMN type_id SET DEFAULT nextval('pub
 
 
 --
--- TOC entry 4781 (class 2604 OID 16514)
+-- TOC entry 4782 (class 2604 OID 16514)
 -- Name: rooms room_id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -446,7 +476,7 @@ ALTER TABLE ONLY public.rooms ALTER COLUMN room_id SET DEFAULT nextval('public.r
 
 
 --
--- TOC entry 4779 (class 2604 OID 16503)
+-- TOC entry 4780 (class 2604 OID 16503)
 -- Name: users user_id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -454,7 +484,7 @@ ALTER TABLE ONLY public.users ALTER COLUMN user_id SET DEFAULT nextval('public.u
 
 
 --
--- TOC entry 4977 (class 0 OID 16542)
+-- TOC entry 4978 (class 0 OID 16542)
 -- Dependencies: 224
 -- Data for Name: audit_logs; Type: TABLE DATA; Schema: public; Owner: postgres
 --
@@ -467,11 +497,15 @@ COPY public.audit_logs (log_id, reservation_id, action_type, description, log_da
 5	6	DELETE	Rezervasyon iptal edildi. Oda ID: 5	2025-12-03 21:05:50.340941
 6	5	DELETE	Rezervasyon iptal edildi. Oda ID: 7	2025-12-03 21:06:21.625114
 7	7	DELETE	Rezervasyon iptal edildi. Oda ID: 1	2025-12-20 18:33:44.371646
+8	8	DELETE	Rezervasyon iptal edildi. Oda ID: 2	2025-12-22 12:06:28.370606
+9	11	DELETE	Rezervasyon iptal edildi. Oda ID: 15	2025-12-22 12:07:03.403409
+10	16	DELETE	Rezervasyon iptal edildi. Oda ID: 33	2025-12-22 13:51:37.319468
+11	17	DELETE	Rezervasyon iptal edildi. Oda ID: 18	2025-12-22 13:52:56.540384
 \.
 
 
 --
--- TOC entry 4981 (class 0 OID 16574)
+-- TOC entry 4982 (class 0 OID 16574)
 -- Dependencies: 228
 -- Data for Name: features; Type: TABLE DATA; Schema: public; Owner: postgres
 --
@@ -488,29 +522,37 @@ COPY public.features (feature_id, feature_name) FROM stdin;
 
 
 --
--- TOC entry 4984 (class 0 OID 16598)
+-- TOC entry 4985 (class 0 OID 16598)
 -- Dependencies: 231
 -- Data for Name: payments; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
 COPY public.payments (payment_id, reservation_id, amount, payment_date, payment_method) FROM stdin;
-4	8	15000.00	2025-12-20 18:30:43.077371	Kredi Kartı
+5	9	10000.00	2025-12-22 11:36:24.020811	Kredi Kartı
+6	10	1500.00	2025-12-22 11:36:49.922018	Kredi Kartı
+8	12	36000.00	2025-12-22 11:37:36.734516	Kredi Kartı
+9	13	5000.00	2025-12-22 11:38:16.297539	Kredi Kartı
 \.
 
 
 --
--- TOC entry 4975 (class 0 OID 16524)
+-- TOC entry 4976 (class 0 OID 16524)
 -- Dependencies: 222
 -- Data for Name: reservations; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
 COPY public.reservations (reservation_id, user_id, room_id, start_date, end_date, total_price, created_at) FROM stdin;
-8	2	2	2025-12-20	2025-12-30	15000.00	2025-12-20 18:30:43.077371
+9	7	5	2025-12-22	2025-12-27	10000.00	2025-12-22 11:36:24.020811
+10	4	1	2025-12-22	2025-12-23	1500.00	2025-12-22 11:36:49.922018
+12	6	37	2025-12-22	2025-12-25	36000.00	2025-12-22 11:37:36.734516
+13	8	29	2025-12-22	2025-12-23	5000.00	2025-12-22 11:38:16.297539
+18	8	4	2025-12-22	2025-12-24	3000.00	2025-12-22 14:13:25.068129
+19	9	13	2025-12-22	2025-12-24	5000.00	2025-12-22 15:40:04.620164
 \.
 
 
 --
--- TOC entry 4982 (class 0 OID 16582)
+-- TOC entry 4983 (class 0 OID 16582)
 -- Dependencies: 229
 -- Data for Name: room_features; Type: TABLE DATA; Schema: public; Owner: postgres
 --
@@ -700,7 +742,7 @@ COPY public.room_features (room_id, feature_id) FROM stdin;
 
 
 --
--- TOC entry 4979 (class 0 OID 16558)
+-- TOC entry 4980 (class 0 OID 16558)
 -- Dependencies: 226
 -- Data for Name: room_types; Type: TABLE DATA; Schema: public; Owner: postgres
 --
@@ -714,14 +756,13 @@ COPY public.room_types (type_id, type_name, description) FROM stdin;
 
 
 --
--- TOC entry 4973 (class 0 OID 16511)
+-- TOC entry 4974 (class 0 OID 16511)
 -- Dependencies: 220
 -- Data for Name: rooms; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
 COPY public.rooms (room_id, room_number, price_per_night, status, type_id) FROM stdin;
 3	12	1500.00	AVAILABLE	1
-4	13	1500.00	AVAILABLE	1
 6	15	1500.00	AVAILABLE	1
 7	16	1500.00	AVAILABLE	1
 8	17	1500.00	AVAILABLE	1
@@ -729,12 +770,9 @@ COPY public.rooms (room_id, room_number, price_per_night, status, type_id) FROM 
 10	19	1500.00	AVAILABLE	1
 11	20	2500.00	AVAILABLE	2
 12	21	2500.00	AVAILABLE	2
-13	22	2500.00	AVAILABLE	2
 14	23	2500.00	AVAILABLE	2
-15	24	2500.00	AVAILABLE	2
 16	25	2500.00	AVAILABLE	2
 17	26	2500.00	AVAILABLE	2
-18	27	2500.00	AVAILABLE	2
 19	28	2500.00	AVAILABLE	2
 20	29	2500.00	AVAILABLE	2
 21	30	5000.00	AVAILABLE	3
@@ -745,47 +783,55 @@ COPY public.rooms (room_id, room_number, price_per_night, status, type_id) FROM 
 26	35	5000.00	AVAILABLE	3
 27	36	5000.00	AVAILABLE	3
 28	37	5000.00	AVAILABLE	3
-29	38	5000.00	AVAILABLE	3
 30	39	5000.00	AVAILABLE	3
 31	40	12000.00	AVAILABLE	4
 32	41	12000.00	AVAILABLE	4
-33	42	12000.00	AVAILABLE	4
 34	43	12000.00	AVAILABLE	4
 35	44	12000.00	AVAILABLE	4
 36	45	12000.00	AVAILABLE	4
-37	46	12000.00	AVAILABLE	4
 38	47	12000.00	AVAILABLE	4
 39	48	12000.00	AVAILABLE	4
 40	49	12000.00	AVAILABLE	4
-5	14	2000.00	AVAILABLE	1
-2	11	1500.00	OCCUPIED	1
-1	10	1500.00	AVAILABLE	1
+5	14	2000.00	OCCUPIED	1
+1	10	1500.00	OCCUPIED	1
+37	46	12000.00	OCCUPIED	4
+29	38	5000.00	OCCUPIED	3
+2	11	1500.00	AVAILABLE	1
+15	24	2500.00	AVAILABLE	2
+33	42	12000.00	AVAILABLE	4
+18	27	2500.00	AVAILABLE	2
+4	13	1500.00	OCCUPIED	1
+13	22	2500.00	OCCUPIED	2
 \.
 
 
 --
--- TOC entry 4971 (class 0 OID 16500)
+-- TOC entry 4972 (class 0 OID 16500)
 -- Dependencies: 218
 -- Data for Name: users; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
 COPY public.users (user_id, username, password, full_name, role, created_at) FROM stdin;
 1	admin	1234	Sistem Yöneticisi	ADMIN	2025-12-17 00:25:02.980885
-2	ali	1234	ali veli	CUSTOMER	2025-12-20 18:28:37.444335
+4	elif	1234	Elif Şan	CUSTOMER	2025-12-22 11:33:28.99693
+6	erto	1234	Ertuğrul Aslan	CUSTOMER	2025-12-22 11:34:12.680769
+7	murat	1234	Murat Karasu	CUSTOMER	2025-12-22 11:34:27.003418
+8	arif	1234	Arif Üçgül	CUSTOMER	2025-12-22 11:35:49.730832
+9	apo	1234	Abdullah Mesut	CUSTOMER	2025-12-22 13:53:58.715323
 \.
 
 
 --
--- TOC entry 4997 (class 0 OID 0)
+-- TOC entry 4998 (class 0 OID 0)
 -- Dependencies: 223
 -- Name: audit_logs_log_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.audit_logs_log_id_seq', 7, true);
+SELECT pg_catalog.setval('public.audit_logs_log_id_seq', 11, true);
 
 
 --
--- TOC entry 4998 (class 0 OID 0)
+-- TOC entry 4999 (class 0 OID 0)
 -- Dependencies: 227
 -- Name: features_feature_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
@@ -794,25 +840,25 @@ SELECT pg_catalog.setval('public.features_feature_id_seq', 14, true);
 
 
 --
--- TOC entry 4999 (class 0 OID 0)
+-- TOC entry 5000 (class 0 OID 0)
 -- Dependencies: 230
 -- Name: payments_payment_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.payments_payment_id_seq', 4, true);
-
-
---
--- TOC entry 5000 (class 0 OID 0)
--- Dependencies: 221
--- Name: reservations_reservation_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
---
-
-SELECT pg_catalog.setval('public.reservations_reservation_id_seq', 8, true);
+SELECT pg_catalog.setval('public.payments_payment_id_seq', 9, true);
 
 
 --
 -- TOC entry 5001 (class 0 OID 0)
+-- Dependencies: 221
+-- Name: reservations_reservation_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.reservations_reservation_id_seq', 19, true);
+
+
+--
+-- TOC entry 5002 (class 0 OID 0)
 -- Dependencies: 225
 -- Name: room_types_type_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
@@ -821,25 +867,25 @@ SELECT pg_catalog.setval('public.room_types_type_id_seq', 4, true);
 
 
 --
--- TOC entry 5002 (class 0 OID 0)
+-- TOC entry 5003 (class 0 OID 0)
 -- Dependencies: 219
 -- Name: rooms_room_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.rooms_room_id_seq', 41, true);
+SELECT pg_catalog.setval('public.rooms_room_id_seq', 43, true);
 
 
 --
--- TOC entry 5003 (class 0 OID 0)
+-- TOC entry 5004 (class 0 OID 0)
 -- Dependencies: 217
 -- Name: users_user_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.users_user_id_seq', 3, true);
+SELECT pg_catalog.setval('public.users_user_id_seq', 9, true);
 
 
 --
--- TOC entry 4804 (class 2606 OID 16550)
+-- TOC entry 4805 (class 2606 OID 16550)
 -- Name: audit_logs audit_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -848,7 +894,7 @@ ALTER TABLE ONLY public.audit_logs
 
 
 --
--- TOC entry 4810 (class 2606 OID 16581)
+-- TOC entry 4811 (class 2606 OID 16581)
 -- Name: features features_feature_name_key; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -857,7 +903,7 @@ ALTER TABLE ONLY public.features
 
 
 --
--- TOC entry 4812 (class 2606 OID 16579)
+-- TOC entry 4813 (class 2606 OID 16579)
 -- Name: features features_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -866,7 +912,7 @@ ALTER TABLE ONLY public.features
 
 
 --
--- TOC entry 4816 (class 2606 OID 16604)
+-- TOC entry 4817 (class 2606 OID 16604)
 -- Name: payments payments_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -875,7 +921,7 @@ ALTER TABLE ONLY public.payments
 
 
 --
--- TOC entry 4802 (class 2606 OID 16530)
+-- TOC entry 4803 (class 2606 OID 16530)
 -- Name: reservations reservations_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -884,7 +930,7 @@ ALTER TABLE ONLY public.reservations
 
 
 --
--- TOC entry 4814 (class 2606 OID 16586)
+-- TOC entry 4815 (class 2606 OID 16586)
 -- Name: room_features room_features_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -893,7 +939,7 @@ ALTER TABLE ONLY public.room_features
 
 
 --
--- TOC entry 4806 (class 2606 OID 16565)
+-- TOC entry 4807 (class 2606 OID 16565)
 -- Name: room_types room_types_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -902,7 +948,7 @@ ALTER TABLE ONLY public.room_types
 
 
 --
--- TOC entry 4808 (class 2606 OID 16567)
+-- TOC entry 4809 (class 2606 OID 16567)
 -- Name: room_types room_types_type_name_key; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -911,7 +957,7 @@ ALTER TABLE ONLY public.room_types
 
 
 --
--- TOC entry 4798 (class 2606 OID 16520)
+-- TOC entry 4799 (class 2606 OID 16520)
 -- Name: rooms rooms_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -920,7 +966,7 @@ ALTER TABLE ONLY public.rooms
 
 
 --
--- TOC entry 4800 (class 2606 OID 16522)
+-- TOC entry 4801 (class 2606 OID 16522)
 -- Name: rooms rooms_room_number_key; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -929,7 +975,7 @@ ALTER TABLE ONLY public.rooms
 
 
 --
--- TOC entry 4794 (class 2606 OID 16507)
+-- TOC entry 4795 (class 2606 OID 16507)
 -- Name: users users_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -938,7 +984,7 @@ ALTER TABLE ONLY public.users
 
 
 --
--- TOC entry 4796 (class 2606 OID 16509)
+-- TOC entry 4797 (class 2606 OID 16509)
 -- Name: users users_username_key; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -947,7 +993,7 @@ ALTER TABLE ONLY public.users
 
 
 --
--- TOC entry 4823 (class 2620 OID 16655)
+-- TOC entry 4824 (class 2620 OID 16655)
 -- Name: reservations trg_audit_cancel; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
@@ -955,7 +1001,7 @@ CREATE TRIGGER trg_audit_cancel AFTER DELETE ON public.reservations FOR EACH ROW
 
 
 --
--- TOC entry 4824 (class 2620 OID 16553)
+-- TOC entry 4825 (class 2620 OID 16553)
 -- Name: reservations trg_update_room_status; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
@@ -963,7 +1009,7 @@ CREATE TRIGGER trg_update_room_status BEFORE INSERT ON public.reservations FOR E
 
 
 --
--- TOC entry 4817 (class 2606 OID 16568)
+-- TOC entry 4818 (class 2606 OID 16568)
 -- Name: rooms fk_room_type; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -972,7 +1018,7 @@ ALTER TABLE ONLY public.rooms
 
 
 --
--- TOC entry 4822 (class 2606 OID 16658)
+-- TOC entry 4823 (class 2606 OID 16658)
 -- Name: payments payments_reservation_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -981,7 +1027,7 @@ ALTER TABLE ONLY public.payments
 
 
 --
--- TOC entry 4818 (class 2606 OID 16536)
+-- TOC entry 4819 (class 2606 OID 16536)
 -- Name: reservations reservations_room_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -990,7 +1036,7 @@ ALTER TABLE ONLY public.reservations
 
 
 --
--- TOC entry 4819 (class 2606 OID 16531)
+-- TOC entry 4820 (class 2606 OID 16531)
 -- Name: reservations reservations_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -999,7 +1045,7 @@ ALTER TABLE ONLY public.reservations
 
 
 --
--- TOC entry 4820 (class 2606 OID 16592)
+-- TOC entry 4821 (class 2606 OID 16592)
 -- Name: room_features room_features_feature_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -1008,7 +1054,7 @@ ALTER TABLE ONLY public.room_features
 
 
 --
--- TOC entry 4821 (class 2606 OID 16587)
+-- TOC entry 4822 (class 2606 OID 16587)
 -- Name: room_features room_features_room_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -1016,11 +1062,11 @@ ALTER TABLE ONLY public.room_features
     ADD CONSTRAINT room_features_room_id_fkey FOREIGN KEY (room_id) REFERENCES public.rooms(room_id) ON DELETE CASCADE;
 
 
--- Completed on 2025-12-20 21:54:50
+-- Completed on 2025-12-23 21:26:48
 
 --
 -- PostgreSQL database dump complete
 --
 
-\unrestrict Lm7EEfqMxcQe5nvBvhQopBk3yOi2dddcWoaatExIusMDONpPloUrUDrmokAliEo
+\unrestrict PlmVbxTECxUILNZJKHBbGkGUXyzvjPL6JH2EXy61T2wmEYUCkkzddx5gMjA7gMJ
 

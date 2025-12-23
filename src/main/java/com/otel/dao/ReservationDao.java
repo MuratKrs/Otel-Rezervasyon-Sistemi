@@ -15,58 +15,33 @@ public class ReservationDao {
 
     // 1. REZERVASYON YAPMA
     public boolean makeReservation(Reservation res) {
-        Connection conn = null;
-        PreparedStatement pstmtRes = null;
-        PreparedStatement pstmtPay = null;
-        ResultSet rs = null;
-        boolean isSuccess = false;
+        String sql = "CALL sp_create_reservation(?, ?, ?, ?, ?)";
 
-        String sqlReservation = "INSERT INTO reservations (user_id, room_id, start_date, end_date, total_price) VALUES (?, ?, ?, ?, ?)";
-        String sqlPayment = "INSERT INTO payments (reservation_id, amount, payment_method, payment_date) VALUES (?, ?, 'Kredi Kartı', CURRENT_TIMESTAMP)";
+        try (Connection conn = DbHelper.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-        try {
-            conn = DbHelper.getConnection();
-            conn.setAutoCommit(false); // Transaction Başlat
+            // Parametreleri sırasıyla gönderiyoruz
+            pstmt.setInt(1, res.getUserId());
+            pstmt.setInt(2, res.getRoomId());
 
-            // --- ADIM A: REZERVASYONU EKLE ---
-            pstmtRes = conn.prepareStatement(sqlReservation, Statement.RETURN_GENERATED_KEYS);
-            pstmtRes.setInt(1, res.getUserId());
-            pstmtRes.setInt(2, res.getRoomId());
-            pstmtRes.setDate(3, java.sql.Date.valueOf(res.getCheckInDate()));
-            pstmtRes.setDate(4, java.sql.Date.valueOf(res.getCheckOutDate()));
-            pstmtRes.setDouble(5, res.getTotalPrice());
+            // Java Date -> SQL Date dönüşümü
+            pstmt.setDate(3, java.sql.Date.valueOf(res.getCheckInDate()));
+            pstmt.setDate(4, java.sql.Date.valueOf(res.getCheckOutDate()));
 
-            int affected = pstmtRes.executeUpdate();
-            if (affected == 0) throw new SQLException("Rezervasyon oluşturulamadı.");
+            pstmt.setBigDecimal(5, java.math.BigDecimal.valueOf(res.getTotalPrice()));
 
-            // --- ADIM B: ID AL ---
-            rs = pstmtRes.getGeneratedKeys();
-            int newReservationId = 0;
-            if (rs.next()) {
-                newReservationId = rs.getInt(1);
-            } else {
-                throw new SQLException("Rezervasyon ID alınamadı.");
-            }
+            // Prosedürü çalıştır
+            pstmt.execute();
 
-            // --- ADIM C: ÖDEME EKLE ---
-            pstmtPay = conn.prepareStatement(sqlPayment);
-            pstmtPay.setInt(1, newReservationId);
-            pstmtPay.setDouble(2, res.getTotalPrice());
-            pstmtPay.executeUpdate();
+            // Hata fırlatmadıysa işlem başarılıdır
+            return true;
 
-            conn.commit(); // Onayla
-            isSuccess = true;
-
-        } catch (Exception e) {
+        } catch (SQLException e) {
+            // Eğer veritabanı "Oda dolu!" hatası fırlatırsa bunu yakala
+            System.out.println("Hata: " + e.getMessage());
             e.printStackTrace();
-            try { if (conn != null) conn.rollback(); } catch (SQLException ex) { ex.printStackTrace(); }
-        } finally {
-            try { if (rs != null) rs.close(); } catch (SQLException e) {}
-            try { if (pstmtRes != null) pstmtRes.close(); } catch (SQLException e) {}
-            try { if (pstmtPay != null) pstmtPay.close(); } catch (SQLException e) {}
-            try { if (conn != null) conn.close(); } catch (SQLException e) {}
+            return false;
         }
-        return isSuccess;
     }
 
     // 2. KULLANICININ REZERVASYONLARINI GETİR
